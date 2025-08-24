@@ -1,0 +1,178 @@
+`timescale 1ns/1ps
+
+// Testbench for fifo_sync
+// - Assumes module fifo_sync exists with the ports:
+//   (clk, rst, write_en, read_en, din, dout, full, almost_full, empty, almost_empty)
+// - Default params used: DEPTH=16, WIDTH=8 (adjust instantiation if your fifo.v differs)
+
+module fifo_tb;
+
+    // Parameters (match your RTL)
+    localparam WIDTH = 8;
+    localparam DEPTH = 16;
+    localparam CLK_PERIOD = 10;
+
+    // TB signals
+    reg clk;
+    reg rst;
+    reg write_en;
+    reg read_en;
+    reg [WIDTH-1:0] din;
+    wire [WIDTH-1:0] dout;
+    wire full, almost_full, empty, almost_empty;
+
+    // Instantiate DUT
+    fifo_sync #(
+        .DEPTH(DEPTH),
+        .WIDTH(WIDTH)
+    ) dut (
+        .clk(clk),
+        .rst(rst),
+        .write_en(write_en),
+        .read_en(read_en),
+        .din(din),
+        .dout(dout),
+        .full(full),
+        .almost_full(almost_full),
+        .empty(empty),
+        .almost_empty(almost_empty)
+    );
+
+    // Clock
+    initial begin
+        clk = 0;
+        forever #(CLK_PERIOD/2) clk = ~clk;
+    end
+
+    // waveform dump for GTKWave / debugging
+    initial begin
+        $dumpfile("fifo_tb.vcd");
+        $dumpvars(0, fifo_tb);
+    end
+
+    // Test sequence
+    initial begin
+        // initialize
+        rst = 1;
+        write_en = 0;
+        read_en  = 0;
+        din = 0;
+        #(CLK_PERIOD*2);
+
+        // release reset
+        rst = 0;
+        #(CLK_PERIOD);
+
+        $display("==== START TEST ====");
+        $display("Time\twr_en\trd_en\tDin\tDout\tfull\ta_full\tempty\ta_empty");
+        $display("----------------------------------------------------------------");
+
+        // 1) Write 10 items
+        write_items(10);
+
+        // 2) Read 5 items
+        read_items(5);
+
+        // 3) Write 7 items to cause wrap-around (total written = 17 -> wraps)
+        write_items(7);
+
+        // 4) Show almost_full behavior by writing until blocked by full
+        write_until_full();
+
+        // 5) Concurrent write+read for a few cycles
+        concurrent_rw(6);
+
+        // 6) Drain the FIFO completely
+        read_until_empty();
+
+        // 7) Final idle cycles
+        #(CLK_PERIOD*4);
+
+        $display("==== TEST DONE ====");
+        $finish;
+    end
+
+    // Monitor
+    always @(posedge clk) begin
+        $display("%0t\t%b\t%b\t%0d\t%0d\t%b\t%b\t%b\t%b",
+                 $time, write_en, read_en, din, dout, full, almost_full, empty, almost_empty);
+    end
+
+    // Tasks
+    task write_items(input integer n);
+        integer i;
+        begin
+            for (i = 0; i < n; i = i + 1) begin
+                @(negedge clk);
+                din = i[WIDTH-1:0] + 8'h10; // payload pattern
+                write_en = 1;
+                read_en  = 0;
+                @(negedge clk);
+                // release write
+                write_en = 0;
+                @(negedge clk);
+            end
+        end
+    endtask
+
+    task read_items(input integer n);
+        integer i;
+        begin
+            for (i = 0; i < n; i = i + 1) begin
+                @(negedge clk);
+                read_en = 1;
+                write_en = 0;
+                @(negedge clk);
+                read_en = 0;
+                @(negedge clk);
+            end
+        end
+    endtask
+
+    task write_until_full();
+        begin
+            // keep issuing writes until 'full' prevents write progress
+            while (!full) begin
+                @(negedge clk);
+                write_en = 1;
+                din = $random;
+                read_en = 0;
+                @(negedge clk);
+                write_en = 0;
+                @(negedge clk);
+            end
+            $display("Reached FULL at time %0t", $time);
+        end
+    endtask
+
+    task concurrent_rw(input integer cycles);
+        integer i;
+        begin
+            for (i = 0; i < cycles; i = i + 1) begin
+                @(negedge clk);
+                write_en = 1;
+                read_en  = 1;
+                din = $random;
+                @(negedge clk);
+                write_en = 0;
+                read_en  = 0;
+                @(negedge clk);
+            end
+        end
+    endtask
+
+    task read_until_empty();
+        begin
+            while (!empty) begin
+                @(negedge clk);
+                read_en = 1;
+                write_en = 0;
+                @(negedge clk);
+                read_en = 0;
+                @(negedge clk);
+            end
+            $display("Drained FIFO to EMPTY at time %0t", $time);
+        end
+    endtask
+
+endmodule
