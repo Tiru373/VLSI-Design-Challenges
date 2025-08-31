@@ -1,7 +1,7 @@
 
 
 ## 4) `NOTES.md`
-```markdown
+
 # Smart Arbiter — Design Notes
 
 ## Goal
