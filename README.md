@@ -43,5 +43,5 @@ If you find this helpful, don’t forget to:
 ---
 
 ### 🔗 Connect
-💼 [LinkedIn](your-linkedin-url) | 📝 [Newsletter](link) | 🐦 [Twitter](link)
+💼 [LinkedIn](https://www.linkedin.com/in/ashok-tirumalasetty?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app) | 📝 [Newsletter](https://www.linkedin.com/newsletters/from-rtl-to-reality-7329890021207891968) 
 
