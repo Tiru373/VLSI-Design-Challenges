@@ -1,7 +1,4 @@
 
----
-
-## 🔹 `NOTES.md`
 
 ```markdown
 # 📖 Notes: 1×4 Router Design
